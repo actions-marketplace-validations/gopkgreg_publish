@@ -1,0 +1,68 @@
+# Lints the action and dry-runs it on every runner type against the live
+# registry. Actions are pinned to commits (the tag is in the comment).
+name: Test
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+      - name: Workflow files
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+      - name: Shell script
+        run: shellcheck publish.sh
+
+  dry-run:
+    name: Dry run (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: action
+          persist-credentials: false
+
+      - name: Make a module with a release tag
+        shell: bash
+        run: |
+          demo="$RUNNER_TEMP/demo"
+          mkdir -p "$demo" && cd "$demo"
+          git init -q -b main
+          git config user.email selftest@example.com
+          git config user.name selftest
+          printf 'module gopkgreg.com/selftest/demo\n\ngo 1.22\n' > go.mod
+          printf '// Package demo tests the gopkgreg publish action.\npackage demo\n' > demo.go
+          git add -A && git commit -qm "demo module"
+          git tag v0.0.1
+
+      - id: check
+        uses: ./action
+        with:
+          directory: ${{ runner.temp }}/demo
+          dry-run: true
+
+      - name: Check the outputs
+        shell: bash
+        env:
+          MODULE: ${{ steps.check.outputs.module }}
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          test "$MODULE" = gopkgreg.com/selftest/demo || { echo "module output is \"$MODULE\""; exit 1; }
+          test "$VERSION" = v0.0.1 || { echo "version output is \"$VERSION\""; exit 1; }

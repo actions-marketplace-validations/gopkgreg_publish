@@ -1,0 +1,55 @@
+name: gopkgreg publish
+description: Publish a Go module release to gopkgreg from a git tag, with trusted publishing and no stored secrets.
+author: gopkgreg
+branding:
+  icon: package
+  color: blue
+
+inputs:
+  registry:
+    description: Registry URL.
+    default: https://gopkgreg.com
+  directory:
+    description: Directory inside the module to publish. Use it for a module in a subdirectory of the repository.
+    default: .
+  version:
+    description: Version to publish, such as v1.2.3. Empty means the release tag on the checked-out commit.
+    default: ""
+  token:
+    description: An API token, for example from a repository secret. Leave empty to use trusted publishing, which needs "permissions id-token write".
+    default: ""
+  dry-run:
+    description: Build and check the module zip without uploading. Needs no token, so it suits pull requests.
+    default: "false"
+  cli-version:
+    description: Version of the gopkgreg CLI to run, such as v0.2.1, or "latest".
+    default: latest
+  github-token:
+    description: Token used only to look up the latest CLI release without hitting anonymous rate limits.
+    default: ${{ github.token }}
+
+outputs:
+  module:
+    description: The module path, such as gopkgreg.com/alice/retry.
+    value: ${{ steps.publish.outputs.module }}
+  version:
+    description: The version that was published or checked.
+    value: ${{ steps.publish.outputs.version }}
+  url:
+    description: The release's page on the registry. Empty for a dry run.
+    value: ${{ steps.publish.outputs.url }}
+
+runs:
+  using: composite
+  steps:
+    - id: publish
+      shell: bash
+      run: bash "$GITHUB_ACTION_PATH/publish.sh"
+      env:
+        INPUT_REGISTRY: ${{ inputs.registry }}
+        INPUT_DIRECTORY: ${{ inputs.directory }}
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_TOKEN: ${{ inputs.token }}
+        INPUT_DRY_RUN: ${{ inputs.dry-run }}
+        INPUT_CLI_VERSION: ${{ inputs.cli-version }}
+        GH_TOKEN: ${{ inputs.github-token }}
