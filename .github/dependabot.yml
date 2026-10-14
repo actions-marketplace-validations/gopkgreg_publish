@@ -1,0 +1,10 @@
+# Dependabot keeps the actions pinned in the test workflow current.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
