@@ -73,10 +73,12 @@ curl -fsSL --retry 3 --retry-all-errors -o "$work/SHA256SUMS" "$base/SHA256SUMS"
 	fail "couldn't download SHA256SUMS from the $cli_version release."
 
 want=$(awk -v f="$asset" '$2 == f || $2 == "*" f { print $1 }' "$work/SHA256SUMS")
+# Hash from stdin: GNU sha256sum prefixes the hash with "\" when the file
+# name contains a backslash, as Windows paths do.
 if command -v sha256sum >/dev/null; then
-	got=$(sha256sum "$work/$asset" | awk '{ print $1 }')
+	got=$(sha256sum <"$work/$asset" | awk '{ print $1 }')
 else
-	got=$(shasum -a 256 "$work/$asset" | awk '{ print $1 }')
+	got=$(shasum -a 256 <"$work/$asset" | awk '{ print $1 }')
 fi
 [[ -n $want && $got == "$want" ]] ||
 	fail "checksum mismatch for $asset: SHA256SUMS lists ${want:-nothing}, the download hashes to $got."
